@@ -293,7 +293,14 @@ void InterfaceTask::run() {
             log("Strain calibration step 2: Push and hold down the knob with medium pressure, and press 'S' again");
             strain_calibration_step_ = 2;
         } else if (strain_calibration_step_ == 2) {
-            configuration_value_.strain.press_delta = strain_reading_ - configuration_value_.strain.idle_value;
+            int32_t press_delta = strain_reading_ - configuration_value_.strain.idle_value;
+            if (press_delta == 0) {
+                // A zero delta would cause a division by zero when mapping strain readings to press_value_unit
+                log("Strain calibration FAILED: no change detected while pressing. Press 'S' to start over.");
+                strain_calibration_step_ = 0;
+                return;
+            }
+            configuration_value_.strain.press_delta = press_delta;
             configuration_value_.has_strain = true;
             snprintf(buf_, sizeof(buf_), "  press_delta=%d", configuration_value_.strain.press_delta);
             log(buf_);
@@ -407,7 +414,8 @@ void InterfaceTask::updateHardware() {
                 log(buf_);
                 last_reading_display = millis();
             }
-            if (configuration_loaded_ && configuration_value_.has_strain && strain_calibration_step_ == 0) {
+            // press_delta == 0 (e.g. a calibration saved by older firmware) would divide by zero in lerp(); treat as uncalibrated
+            if (configuration_loaded_ && configuration_value_.has_strain && configuration_value_.strain.press_delta != 0 && strain_calibration_step_ == 0) {
                 // TODO: calibrate and track (long term moving average) idle point (lower)
                 press_value_unit = lerp(strain_reading_, configuration_value_.strain.idle_value, configuration_value_.strain.idle_value + configuration_value_.strain.press_delta, 0, 1);
 
