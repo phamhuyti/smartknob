@@ -5,11 +5,14 @@
   "main": "dist/smartknob_proto.js",
   "types": "dist/smartknob_proto.d.ts",
   "scripts": {
-    "build": "mkdir -p dist && pbjs --target static-module --out dist/smartknob_proto.js ../../../../proto/*.proto && pbts -o dist/smartknob_proto.d.ts dist/smartknob_proto.js"
+    "build": "mkdir -p dist && pbjs --target static-module --sparse -p include --out dist/smartknob_proto.js ../../../../proto/smartknob.proto && pbts -o dist/smartknob_proto.d.ts dist/smartknob_proto.js"
   },
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "protobufjs": "^6.11.2"
+    "protobufjs": "^7.6.6"
+  },
+  "devDependencies": {
+    "protobufjs-cli": "^1.3.3"
   }
 }
