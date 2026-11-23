@@ -35,7 +35,9 @@ jobs:
           node-version: 22
       - name: Install dependencies
         working-directory: software/js
-        run: npm ci
+        # --ignore-scripts: the static web build needs no native addons (old @serialport/bindings
+        # does not compile on Node 22), and it keeps dependency install scripts from running in CI
+        run: npm ci --ignore-scripts
       - name: Build
         working-directory: software/js
         run: PUBLIC_URL="/smartknob" npm run build
