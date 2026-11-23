@@ -1,4 +1,5 @@
 #include <SimpleFOC.h>
+#include <cmath>
 
 #include "motor_task.h"
 #if SENSOR_MT6701
@@ -115,6 +116,21 @@ void MotorTask::run() {
                 case CommandType::CONFIG: {
                     // Check new config for validity
                     PB_SmartKnobConfig& new_config = command.data.config;
+                    // NaN/Inf compare false against every bound below, so reject them explicitly before any range checks.
+                    // A non-finite value would otherwise propagate into the PID output and the PWM duty cycle.
+                    if (!std::isfinite(new_config.sub_position_unit)
+                            || !std::isfinite(new_config.position_width_radians)
+                            || !std::isfinite(new_config.detent_strength_unit)
+                            || !std::isfinite(new_config.endstop_strength_unit)
+                            || !std::isfinite(new_config.snap_point)
+                            || !std::isfinite(new_config.snap_point_bias)) {
+                        log("Ignoring invalid config: all float fields must be finite");
+                        break;
+                    }
+                    if (new_config.position_width_radians <= 0) {
+                        log("Ignoring invalid config: position_width_radians must be positive");
+                        break;
+                    }
                     if (new_config.detent_strength_unit < 0) {
                         log("Ignoring invalid config: detent_strength_unit cannot be negative");
                         break;
@@ -236,7 +252,8 @@ void MotorTask::run() {
         float snap_point_radians_decrease = snap_point_radians + (current_position <= 0 ? bias_radians : -bias_radians);
         float snap_point_radians_increase = -snap_point_radians + (current_position >= 0 ? -bias_radians : bias_radians); 
 
-        int32_t num_positions = config.max_position - config.min_position + 1;
+        // Compute in 64 bits: max - min + 1 overflows int32 (undefined behavior) for extreme min/max values.
+        int64_t num_positions = (int64_t)config.max_position - (int64_t)config.min_position + 1;
         if (angle_to_detent_center > snap_point_radians_decrease && (num_positions <= 0 || current_position > config.min_position)) {
             current_detent_center += config.position_width_radians;
             angle_to_detent_center -= config.position_width_radians;
